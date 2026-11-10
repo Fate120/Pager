@@ -1,0 +1,46 @@
+name: kasir_flutter
+description: "Aplikasi POS Kasir & Manajemen Antrean Digital Pager F&B"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management & DI
+  provider: ^6.1.2
+
+  # Networking & Realtime
+  http: ^1.2.1
+
+  # Local Persistence
+  shared_preferences: ^2.2.3
+
+  # Thermal Printing (ESC/POS)
+  print_bluetooth_thermal: ^1.1.1
+  esc_pos_utils_plus: ^2.0.1
+
+  # QR Code Generation & Display
+  qr_flutter: ^4.1.0
+
+  # Charts for Sales Trends & Peak Hours
+  fl_chart: ^0.68.0
+
+  # Localization, Currency & Date Formatting
+  intl: ^0.19.0
+
+  # UI Icons & Styling
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
