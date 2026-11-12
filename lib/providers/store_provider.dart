@@ -1,9 +1,7 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' hide Category;
 import '../models/store_profile.dart';
-import '../models/category.dart';
-import '../models/product.dart';
-import '../models/cart_item.dart';
 import '../models/order.dart';
+import '../models/product.dart';
 import '../models/report_analytics.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
@@ -15,11 +13,12 @@ class StoreProvider with ChangeNotifier {
   // Profile & Onboarding
   StoreProfile _profile = StoreProfile(
     outletName: 'Kedai Kopi Aksiva',
-    address: '',
-    phoneNumber: '',
-    receiptCustomText: '',
+    address: 'Jl. Rinjani No. 12, Semarang',
+    phoneNumber: '08562872671',
+    receiptCustomText: 'Terima kasih atas kunjungan Anda!',
   );
   bool _hasOnboarded = false;
+  bool _isInitialized = false;
 
   // Catalog
   List<Category> _categories = [];
@@ -51,6 +50,7 @@ class StoreProvider with ChangeNotifier {
   // Getters
   StoreProfile get profile => _profile;
   bool get hasOnboarded => _hasOnboarded;
+  bool get isInitialized => _isInitialized;
   List<Category> get categories => _categories;
   List<Product> get products {
     if (_selectedCategoryId == null) return _products;
@@ -82,13 +82,22 @@ class StoreProvider with ChangeNotifier {
       _profile = savedProfile;
       _hasOnboarded = true;
     } else {
-      _hasOnboarded = false;
+      final remoteConfig = await _api.fetchStoreConfig();
+      if (remoteConfig != null && remoteConfig.outletName.isNotEmpty) {
+        _profile = remoteConfig;
+        _hasOnboarded = true;
+        await StorageService.saveStoreProfile(remoteConfig);
+      } else {
+        _hasOnboarded = false;
+      }
     }
 
     _connectedPrinterName = StorageService.getPrinterName();
     checkPrinterStatus();
 
     await loadCatalog();
+    await loadActiveQueue();
+    _isInitialized = true;
     notifyListeners();
   }
 
@@ -217,7 +226,14 @@ class StoreProvider with ChangeNotifier {
     );
 
     if (res != null) {
-      final orderData = res['ticket'] ?? res['order'] ?? res;
+      final Map<String, dynamic> orderData = res['ticket'] is Map<String, dynamic>
+          ? Map<String, dynamic>.from(res['ticket'])
+          : (res['order'] is Map<String, dynamic>
+              ? Map<String, dynamic>.from(res['order'])
+              : Map<String, dynamic>.from(res));
+      if (res['ticketUrl'] != null) {
+        orderData['ticketUrl'] = res['ticketUrl'];
+      }
       final newOrder = OrderModel.fromJson(orderData);
       clearCart();
       loadActiveQueue();

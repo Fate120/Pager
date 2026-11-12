@@ -69,6 +69,42 @@ class _PosScreenState extends State<PosScreen> {
           ],
         ),
         actions: [
+          // Tombol Antrean Aktif
+          Consumer<StoreProvider>(
+            builder: (ctx, p, _) {
+              final count = p.activeQueue.length;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                child: InkWell(
+                  onTap: () => _showActiveQueueDialog(context),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: count > 0 ? AppTheme.accentOrange : Colors.white24,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.people_alt, size: 16, color: Colors.white),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Antrean: $count',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Pengaturan Printer Bluetooth',
             icon: Consumer<StoreProvider>(
@@ -594,6 +630,13 @@ class _PosScreenState extends State<PosScreen> {
                 );
                 if (order != null && mounted) {
                   _showOrderSuccessModal(context, order);
+                } else if (order == null && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('⚠️ Gagal membuat antrean. Periksa koneksi backend di Pengaturan.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
                 }
               },
               child: const Text('KONFIRMASI BAYAR'),
@@ -608,13 +651,22 @@ class _PosScreenState extends State<PosScreen> {
   void _showOrderSuccessModal(BuildContext context, OrderModel order) {
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
           side: const BorderSide(color: AppTheme.borderBlack, width: 2.5),
           borderRadius: BorderRadius.circular(12),
         ),
-        title: const Text('✅ Pembayaran Berhasil', style: TextStyle(fontWeight: FontWeight.w900, color: AppTheme.successGreen)),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('✅ Pembayaran Berhasil', style: TextStyle(fontWeight: FontWeight.w900, color: AppTheme.successGreen, fontSize: 18)),
+            IconButton(
+              icon: const Icon(Icons.close, color: AppTheme.textMuted),
+              onPressed: () => Navigator.of(ctx).pop(),
+            ),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -660,11 +712,178 @@ class _PosScreenState extends State<PosScreen> {
               }
             },
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Transaksi Baru'),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryNavy),
+            child: const Text('Transaksi Baru ➔', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showActiveQueueDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Consumer<StoreProvider>(
+        builder: (dialogCtx, provider, _) {
+          final queue = provider.activeQueue;
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              side: const BorderSide(color: AppTheme.borderBlack, width: 2.5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.people_alt, color: AppTheme.primaryNavy),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Antrean Aktif (${queue.length})',
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  tooltip: 'Segarkan',
+                  icon: const Icon(Icons.refresh, size: 20),
+                  onPressed: () => provider.loadActiveQueue(),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 500,
+              height: 400,
+              child: queue.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.check_circle_outline, size: 48, color: Colors.grey),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Tidak ada antrean yang sedang disiapkan.',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textMuted),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Pesanan baru dari kasir akan otomatis muncul di sini.',
+                            style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: queue.length,
+                      separatorBuilder: (_, __) => const Divider(height: 16),
+                      itemBuilder: (_, idx) {
+                        final item = queue[idx];
+                        final isCalled = item.callCount > 0;
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isCalled ? AppTheme.accentYellow.withValues(alpha: 0.15) : Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppTheme.borderBlack, width: 1.5),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryNavy,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  item.queueNumber,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${item.customerName} • ${item.orderType == 'dine_in' ? 'Dine In' : 'Take Away'}${item.tableNo != null && item.tableNo!.isNotEmpty ? ' (Meja ${item.tableNo})' : ''}',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      item.items.map((it) => '${it.quantity}x ${it.name}').join(', '),
+                                      style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if (isCalled) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '📢 Sudah dipanggil ${item.callCount}x',
+                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.accentOrange),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ElevatedButton(
+                                    onPressed: () async {
+                                      await provider.callQueue(item.id);
+                                      if (ctx.mounted) {
+                                        ScaffoldMessenger.of(ctx).showSnackBar(
+                                          SnackBar(content: Text('📢 Memanggil antrean ${item.queueNumber}...')),
+                                        );
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.accentOrange,
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      minimumSize: Size.zero,
+                                    ),
+                                    child: const Text('📢 Panggil', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  ElevatedButton(
+                                    onPressed: () async {
+                                      await provider.completeQueue(item.id);
+                                      if (ctx.mounted) {
+                                        ScaffoldMessenger.of(ctx).showSnackBar(
+                                          SnackBar(content: Text('✅ Antrean ${item.queueNumber} selesai diambil!')),
+                                        );
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.successGreen,
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      minimumSize: Size.zero,
+                                    ),
+                                    child: const Text('✅ Selesai', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Tutup'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

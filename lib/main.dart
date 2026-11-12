@@ -25,13 +25,24 @@ class KasirApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isOnboarded = StorageService.isOnboarded();
-
     return MaterialApp(
       title: 'Aksiva Kasir POS & Pager',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
-      home: isOnboarded ? const PosScreen() : const ProfileSetupScreen(isInitialSetup: true),
+      home: Consumer<StoreProvider>(
+        builder: (context, store, _) {
+          if (!store.isInitialized) {
+            return const Scaffold(
+              backgroundColor: AppTheme.backgroundSand,
+              body: Center(
+                child: CircularProgressIndicator(color: AppTheme.primaryNavy),
+              ),
+            );
+          }
+          final isOnboarded = store.hasOnboarded || StorageService.isOnboarded();
+          return isOnboarded ? const PosScreen() : const ProfileSetupScreen(isInitialSetup: true);
+        },
+      ),
     );
   }
 }

@@ -34,6 +34,8 @@ class AppTheme {
     ),
   ];
 
+  static ThemeData get theme => themeData;
+
   static ThemeData get themeData {
     return ThemeData(
       useMaterial3: true,
@@ -43,10 +45,10 @@ class AppTheme {
         seedColor: primaryNavy,
         primary: primaryNavy,
         secondary: accentOrange,
-        background: backgroundSand,
+        surface: backgroundSand,
       ),
       fontFamily: 'sans-serif',
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: surfaceWhite,
         elevation: 0,
         shape: RoundedRectangleBorder(

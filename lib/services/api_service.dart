@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/store_profile.dart';
-import '../models/category.dart';
 import '../models/product.dart';
 import '../models/order.dart';
 import '../models/report_analytics.dart';

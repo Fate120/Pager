@@ -223,6 +223,33 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       ),
                     ),
                   ),
+                  if (widget.isInitialSetup) ...[
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: () async {
+                        final defaultProfile = StoreProfile(
+                          outletName: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : 'Kedai Kopi Aksiva',
+                          address: _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : 'Jl. Rinjani No. 12, Semarang',
+                          phoneNumber: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : '08562872671',
+                          receiptCustomText: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : 'Terima kasih atas kunjungan Anda!',
+                        );
+                        await context.read<StoreProvider>().updateProfile(defaultProfile);
+                        if (mounted) {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(builder: (_) => const PosScreen()),
+                          );
+                        }
+                      },
+                      child: const Text(
+                        'Lewati & Masuk Menggunakan Data Bawaan ➔',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryNavy,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

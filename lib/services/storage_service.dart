@@ -35,6 +35,8 @@ class StorageService {
     return profile != null && profile.outletName.isNotEmpty;
   }
 
+  static bool isOnboarded() => hasCompletedOnboarding();
+
   // Base URL
   static Future<bool> saveBaseUrl(String url) async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();

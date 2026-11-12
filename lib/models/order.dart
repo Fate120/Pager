@@ -15,9 +15,14 @@ class CartItem {
 
   Map<String, dynamic> toJson() => {
     'id': product.id,
+    'productId': product.id,
+    'productName': product.name,
+    'itemName': product.name,
     'name': product.name,
     'price': product.price,
+    'unitPrice': product.price,
     'quantity': quantity,
+    'subtotal': subtotal,
     'notes': notes,
   };
 }
@@ -31,6 +36,8 @@ class OrderItem {
   final int quantity;
   final int subtotal;
   final String? notes;
+
+  String get name => itemName;
 
   OrderItem({
     required this.id,
@@ -57,7 +64,7 @@ class OrderItem {
 
 class OrderModel {
   final String id;
-  final int orderNo;
+  final String orderNo;
   final String queueNumber;
   final String status; // preparing, ready, completed
   final String orderType; // dine_in, take_away
@@ -95,21 +102,21 @@ class OrderModel {
     List<OrderItem> parsedItems = rawItems.map((i) => OrderItem.fromJson(i)).toList();
 
     return OrderModel(
-      id: json['id'] ?? json['orderId'] ?? '',
-      orderNo: json['orderNo'] ?? json['order_no'] ?? 0,
-      queueNumber: json['queueNumber'] ?? json['queue_number'] ?? '',
-      status: json['status'] ?? 'preparing',
-      orderType: json['orderType'] ?? json['order_type'] ?? 'dine_in',
-      tableNo: json['tableNo'] ?? json['table_no'],
-      customerName: json['customerName'] ?? json['customer_name'] ?? 'Pelanggan',
-      paymentMethod: json['paymentMethod'] ?? json['payment_method'] ?? 'cash',
-      cashPaid: json['cashPaid'] ?? json['cash_paid'] ?? 0,
-      totalAmount: json['totalAmount'] ?? json['total_amount'] ?? 0,
-      token: json['token'] ?? json['ticketToken'] ?? '',
-      ticketUrl: json['ticketUrl'],
-      callCount: json['callCount'] ?? json['call_count'] ?? 0,
+      id: (json['id'] ?? json['orderId'] ?? json['ticketId'] ?? '').toString(),
+      orderNo: (json['orderNo'] ?? json['order_no'] ?? '').toString(),
+      queueNumber: (json['queueNumber'] ?? json['queue_number'] ?? '').toString(),
+      status: (json['status'] ?? 'preparing').toString(),
+      orderType: (json['orderType'] ?? json['order_type'] ?? 'dine_in').toString(),
+      tableNo: json['tableNo']?.toString(),
+      customerName: (json['customerName'] ?? json['customer_name'] ?? 'Pelanggan').toString(),
+      paymentMethod: (json['paymentMethod'] ?? json['payment_method'] ?? 'cash').toString(),
+      cashPaid: json['cashPaid'] is int ? json['cashPaid'] : (int.tryParse(json['cashPaid']?.toString() ?? '') ?? 0),
+      totalAmount: json['totalAmount'] is int ? json['totalAmount'] : (int.tryParse(json['totalAmount']?.toString() ?? '') ?? 0),
+      token: (json['token'] ?? json['ticketToken'] ?? '').toString(),
+      ticketUrl: json['ticketUrl']?.toString(),
+      callCount: json['callCount'] is int ? json['callCount'] : (int.tryParse(json['callCount']?.toString() ?? '') ?? 0),
       createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
+          ? (DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now())
           : DateTime.now(),
       items: parsedItems,
     );
