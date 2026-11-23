@@ -38,6 +38,7 @@ class StoreProvider with ChangeNotifier {
   // Reports
   DailySummary? _dailySummary;
   List<RevenueTrendPoint> _revenueTrends = [];
+  String _trendPeriod = 'daily';
   List<HourlySalesPoint> _hourlySales = [];
   List<TopProductItem> _topProducts = [];
   List<OrderModel> _transactions = [];
@@ -56,6 +57,7 @@ class StoreProvider with ChangeNotifier {
     if (_selectedCategoryId == null) return _products;
     return _products.where((p) => p.categoryId == _selectedCategoryId).toList();
   }
+  List<Product> get filteredProducts => products;
   List<Product> get allProducts => _products;
   int? get selectedCategoryId => _selectedCategoryId;
   bool get isLoadingCatalog => _isLoadingCatalog;
@@ -68,6 +70,7 @@ class StoreProvider with ChangeNotifier {
   List<OrderModel> get activeQueue => _activeQueue;
   DailySummary? get dailySummary => _dailySummary;
   List<RevenueTrendPoint> get revenueTrends => _revenueTrends;
+  String get trendPeriod => _trendPeriod;
   List<HourlySalesPoint> get hourlySales => _hourlySales;
   List<TopProductItem> get topProducts => _topProducts;
   List<OrderModel> get transactions => _transactions;
@@ -115,13 +118,26 @@ class StoreProvider with ChangeNotifier {
     _isLoadingCatalog = true;
     notifyListeners();
 
-    _categories = await _api.fetchCategories();
-    _products = await _api.fetchProducts();
+    final apiCategories = await _api.fetchCategories();
+    final apiProducts = await _api.fetchProducts();
 
-    // Fallback seed catalog if backend database is fresh
-    if (_products.isEmpty) {
-      _seedDefaultCatalog();
+    if (apiCategories.isNotEmpty) {
+      _categories = apiCategories;
+    } else {
+      _categories = StorageService.getCategories() ?? [];
     }
+
+    if (apiProducts.isNotEmpty) {
+      _products = apiProducts;
+    } else {
+      _products = StorageService.getProducts() ?? [];
+    }
+
+    // Remove legacy emoji-only products
+    _products.removeWhere((p) => p.imageUrl == null || p.imageUrl!.trim().isEmpty);
+
+    await StorageService.saveCategories(_categories);
+    await StorageService.saveProducts(_products);
 
     _isLoadingCatalog = false;
     notifyListeners();
@@ -132,11 +148,74 @@ class StoreProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> addCategory(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    final created = await _api.addCategory(Category(
+      id: 0,
+      name: trimmed,
+      sortOrder: _categories.length + 1,
+    ));
+    final newCat = created ?? Category(
+      id: DateTime.now().millisecondsSinceEpoch,
+      name: trimmed,
+      sortOrder: _categories.length + 1,
+    );
+    _categories.add(newCat);
+    await StorageService.saveCategories(_categories);
+    notifyListeners();
+  }
+
+  Future<void> editCategory(int id, String newName) async {
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty) return;
+    final idx = _categories.indexWhere((c) => c.id == id);
+    if (idx != -1) {
+      _categories[idx] = _categories[idx].copyWith(name: trimmed);
+      await StorageService.saveCategories(_categories);
+      notifyListeners();
+      await _api.updateCategory(_categories[idx]);
+    }
+  }
+
+  Future<void> deleteCategory(int id, {bool deleteProductsUnderCategory = false}) async {
+    _categories.removeWhere((c) => c.id == id);
+    if (_selectedCategoryId == id) {
+      _selectedCategoryId = null;
+    }
+
+    if (deleteProductsUnderCategory) {
+      final toDelete = _products.where((p) => p.categoryId == id).toList();
+      _products.removeWhere((p) => p.categoryId == id);
+      for (final p in toDelete) {
+        _api.deleteProduct(p.id);
+      }
+      await StorageService.saveProducts(_products);
+    } else {
+      bool productsChanged = false;
+      for (int i = 0; i < _products.length; i++) {
+        if (_products[i].categoryId == id) {
+          _products[i] = _products[i].copyWith(clearCategoryId: true);
+          productsChanged = true;
+          _api.updateProduct(_products[i]);
+        }
+      }
+      if (productsChanged) {
+        await StorageService.saveProducts(_products);
+      }
+    }
+
+    await StorageService.saveCategories(_categories);
+    notifyListeners();
+    await _api.deleteCategory(id);
+  }
+
   Future<void> toggleProductAvailability(Product product) async {
     final updated = product.copyWith(isAvailable: !product.isAvailable);
     final idx = _products.indexWhere((p) => p.id == product.id);
     if (idx != -1) {
       _products[idx] = updated;
+      await StorageService.saveProducts(_products);
       notifyListeners();
       await _api.updateProduct(updated);
     }
@@ -149,6 +228,7 @@ class StoreProvider with ChangeNotifier {
     } else {
       _products.add(product.copyWith(id: DateTime.now().millisecondsSinceEpoch));
     }
+    await StorageService.saveProducts(_products);
     notifyListeners();
   }
 
@@ -156,6 +236,7 @@ class StoreProvider with ChangeNotifier {
     final idx = _products.indexWhere((p) => p.id == product.id);
     if (idx != -1) {
       _products[idx] = product;
+      await StorageService.saveProducts(_products);
       notifyListeners();
       await _api.updateProduct(product);
     }
@@ -163,18 +244,38 @@ class StoreProvider with ChangeNotifier {
 
   Future<void> deleteProduct(int productId) async {
     _products.removeWhere((p) => p.id == productId);
+    await StorageService.saveProducts(_products);
     notifyListeners();
     await _api.deleteProduct(productId);
   }
 
   // 3. Cart Actions
-  void addToCart(Product product, {String notes = ''}) {
+  void addToCart(
+    Product product, {
+    String notes = '',
+    List<ProductAddon> selectedAddOns = const [],
+    int quantity = 1,
+  }) {
     if (!product.isAvailable) return;
-    final index = _cart.indexWhere((c) => c.product.id == product.id && c.notes == notes);
+
+    final index = _cart.indexWhere((c) {
+      if (c.product.id != product.id) return false;
+      if (c.notes.trim() != notes.trim()) return false;
+      if (c.selectedAddOns.length != selectedAddOns.length) return false;
+      final existingIds = c.selectedAddOns.map((a) => a.id).toSet();
+      final newIds = selectedAddOns.map((a) => a.id).toSet();
+      return existingIds.containsAll(newIds);
+    });
+
     if (index != -1) {
-      _cart[index].quantity += 1;
+      _cart[index].quantity += quantity;
     } else {
-      _cart.add(CartItem(product: product, quantity: 1, notes: notes));
+      _cart.add(CartItem(
+        product: product,
+        quantity: quantity,
+        notes: notes,
+        selectedAddOns: List.from(selectedAddOns),
+      ));
     }
     notifyListeners();
   }
@@ -212,15 +313,20 @@ class StoreProvider with ChangeNotifier {
   Future<OrderModel?> checkout({
     required String paymentMethod,
     required int cashPaid,
+    String? customerName,
   }) async {
     if (_cart.isEmpty) return null;
+
+    final targetCustomerName = (customerName != null && customerName.trim().isNotEmpty)
+        ? customerName.trim()
+        : _customerName;
 
     final items = _cart.map((c) => c.toJson()).toList();
     final res = await _api.createOrder(
       paymentMethod: paymentMethod,
       items: items,
       cashPaid: cashPaid,
-      customerName: _customerName,
+      customerName: targetCustomerName,
       orderType: _orderType,
       tableNo: _tableNo,
     );
@@ -236,7 +342,10 @@ class StoreProvider with ChangeNotifier {
       }
       final newOrder = OrderModel.fromJson(orderData);
       clearCart();
+      _customerName = '';
+      _tableNo = null;
       loadActiveQueue();
+      loadReports();
       return newOrder;
     }
     return null;
@@ -256,17 +365,28 @@ class StoreProvider with ChangeNotifier {
 
   Future<bool> completeQueue(String orderId) async {
     final ok = await _api.completeOrder(orderId);
-    if (ok) await loadActiveQueue();
+    if (ok) {
+      await loadActiveQueue();
+      await loadReports();
+    }
     return ok;
   }
 
   // 6. Reports Actions
+  Future<void> setTrendPeriod(String period) async {
+    if (_trendPeriod == period) return;
+    _trendPeriod = period;
+    notifyListeners();
+    _revenueTrends = await _api.fetchRevenueTrend(type: _trendPeriod);
+    notifyListeners();
+  }
+
   Future<void> loadReports({int trendDays = 7, String? date}) async {
     _isLoadingReports = true;
     notifyListeners();
 
     _dailySummary = await _api.fetchSummary(date: date);
-    _revenueTrends = await _api.fetchRevenueTrend(days: trendDays);
+    _revenueTrends = await _api.fetchRevenueTrend(type: _trendPeriod);
     _hourlySales = await _api.fetchHourlySales(date: date);
     _topProducts = await _api.fetchTopProducts(limit: 5);
     _transactions = await _api.fetchTransactionHistory(date: date);
@@ -288,25 +408,14 @@ class StoreProvider with ChangeNotifier {
     );
   }
 
-  // Seed default menu data
+  // Seed default menu data without emojis
   void _seedDefaultCatalog() {
     _categories = [
-      Category(id: 1, name: 'Kopi', emoji: '☕', sortOrder: 1),
-      Category(id: 2, name: 'Non-Kopi', emoji: '🍵', sortOrder: 2),
-      Category(id: 3, name: 'Makanan', emoji: '🍚', sortOrder: 3),
-      Category(id: 4, name: 'Camilan', emoji: '🥐', sortOrder: 4),
+      Category(id: 1, name: 'Kopi', sortOrder: 1),
+      Category(id: 2, name: 'Non-Kopi', sortOrder: 2),
+      Category(id: 3, name: 'Makanan', sortOrder: 3),
+      Category(id: 4, name: 'Camilan', sortOrder: 4),
     ];
-    _products = [
-      Product(id: 1, categoryId: 1, name: 'Americano', price: 15000, emoji: '☕'),
-      Product(id: 2, categoryId: 1, name: 'Latte', price: 18000, emoji: '☕'),
-      Product(id: 3, categoryId: 1, name: 'Cappuccino', price: 18000, emoji: '☕'),
-      Product(id: 4, categoryId: 1, name: 'Kopi Susu Aren', price: 20000, emoji: '☕'),
-      Product(id: 5, categoryId: 2, name: 'Matcha Latte', price: 22000, emoji: '🍵'),
-      Product(id: 6, categoryId: 2, name: 'Ice Lemon Tea', price: 18000, emoji: '🍋'),
-      Product(id: 7, categoryId: 3, name: 'Toast Coklat', price: 20000, emoji: '🍞'),
-      Product(id: 8, categoryId: 3, name: 'Nasi Goreng', price: 25000, emoji: '🍚'),
-      Product(id: 9, categoryId: 4, name: 'Croissant Butter', price: 15000, emoji: '🥐'),
-      Product(id: 10, categoryId: 4, name: 'Donat Kampung', price: 12000, emoji: '🍩'),
-    ];
+    _products = [];
   }
 }

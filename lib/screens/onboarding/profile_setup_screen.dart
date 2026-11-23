@@ -58,7 +58,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Profil kedai berhasil diperbarui!')),
+          const SnackBar(content: Text('Profil kedai berhasil diperbarui!')),
         );
         Navigator.of(context).pop();
       }
@@ -99,7 +99,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                           border: Border.all(color: AppTheme.borderBlack, width: 2),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Text('☕', style: TextStyle(fontSize: 28)),
+                        child: const Icon(Icons.storefront, size: 28, color: AppTheme.primaryNavy),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -215,7 +215,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       ),
                     ),
                     child: Text(
-                      widget.isInitialSetup ? 'SIMPAN & MASUK KASIR ➔' : 'SIMPAN PERUBAHAN',
+                      widget.isInitialSetup ? 'SIMPAN & MASUK KASIR' : 'SIMPAN PERUBAHAN',
                       style: const TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 16,
@@ -241,7 +241,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         }
                       },
                       child: const Text(
-                        'Lewati & Masuk Menggunakan Data Bawaan ➔',
+                        'Lewati & Masuk Menggunakan Data Bawaan',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: AppTheme.primaryNavy,

@@ -56,6 +56,55 @@ class ApiService {
     return [];
   }
 
+  Future<Category?> addCategory(Category category) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/v1/categories'),
+        headers: _headers,
+        body: jsonEncode({
+          'name': category.name,
+          'sortOrder': category.sortOrder,
+        }),
+      );
+      if (res.statusCode == 201 || res.statusCode == 200) {
+        return Category.fromJson(jsonDecode(res.body));
+      }
+    } catch (e) {
+      print('addCategory error: $e');
+    }
+    return null;
+  }
+
+  Future<bool> updateCategory(Category category) async {
+    try {
+      final res = await http.put(
+        Uri.parse('$baseUrl/api/v1/categories/${category.id}'),
+        headers: _headers,
+        body: jsonEncode({
+          'name': category.name,
+          'sortOrder': category.sortOrder,
+        }),
+      );
+      return res.statusCode == 200;
+    } catch (e) {
+      print('updateCategory error: $e');
+    }
+    return false;
+  }
+
+  Future<bool> deleteCategory(int id) async {
+    try {
+      final res = await http.delete(
+        Uri.parse('$baseUrl/api/v1/categories/$id'),
+        headers: _headers,
+      );
+      return res.statusCode == 200;
+    } catch (e) {
+      print('deleteCategory error: $e');
+    }
+    return false;
+  }
+
   Future<List<Product>> fetchProducts() async {
     try {
       final res = await http.get(Uri.parse('$baseUrl/api/v1/products'), headers: _headers);
@@ -197,9 +246,12 @@ class ApiService {
     return null;
   }
 
-  Future<List<RevenueTrendPoint>> fetchRevenueTrend({int days = 7}) async {
+  Future<List<RevenueTrendPoint>> fetchRevenueTrend({String type = 'daily', int? count, int? days}) async {
     try {
-      final res = await http.get(Uri.parse('$baseUrl/api/v1/reports/trend?days=$days'), headers: _headers);
+      final queryParam = type != 'daily'
+          ? 'type=$type${count != null ? '&count=$count' : ''}'
+          : 'type=daily&count=${count ?? days ?? 7}';
+      final res = await http.get(Uri.parse('$baseUrl/api/v1/reports/trend?$queryParam'), headers: _headers);
       if (res.statusCode == 200) {
         final list = jsonDecode(res.body) as List;
         return list.map((i) => RevenueTrendPoint.fromJson(i)).toList();

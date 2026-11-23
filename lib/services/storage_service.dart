@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/store_profile.dart';
+import '../models/category.dart';
+import '../models/product.dart';
 import '../config/app_theme.dart';
 
 class StorageService {
@@ -62,4 +64,40 @@ class StorageService {
   static String? getPrinterAddress() => _prefs?.getString(AppConstants.keyPrinterAddress);
   static String? getPrinterName() => _prefs?.getString(AppConstants.keyPrinterName);
   static int getPaperSize() => _prefs?.getInt(AppConstants.keyPaperSize) ?? 58;
+
+  // Products
+  static Future<bool> saveProducts(List<Product> products) async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    final jsonList = products.map((p) => p.toJson()).toList();
+    return await prefs.setString(AppConstants.keyProducts, jsonEncode(jsonList));
+  }
+
+  static List<Product>? getProducts() {
+    final raw = _prefs?.getString(AppConstants.keyProducts);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final list = jsonDecode(raw) as List;
+      return list.map((p) => Product.fromJson(Map<String, dynamic>.from(p))).toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Categories
+  static Future<bool> saveCategories(List<Category> categories) async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    final jsonList = categories.map((c) => c.toJson()).toList();
+    return await prefs.setString(AppConstants.keyCategories, jsonEncode(jsonList));
+  }
+
+  static List<Category>? getCategories() {
+    final raw = _prefs?.getString(AppConstants.keyCategories);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final list = jsonDecode(raw) as List;
+      return list.map((c) => Category.fromJson(Map<String, dynamic>.from(c))).toList();
+    } catch (_) {
+      return null;
+    }
+  }
 }

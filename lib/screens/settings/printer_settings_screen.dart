@@ -33,7 +33,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
     if (!isEnabled) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('⚠️ Bluetooth mati. Silakan nyalakan Bluetooth terlebih dahulu.')),
+          const SnackBar(content: Text('Bluetooth mati. Silakan nyalakan Bluetooth terlebih dahulu.')),
         );
       }
       setState(() => _isScanning = false);
@@ -63,13 +63,13 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
       if (mounted) {
         context.read<StoreProvider>().checkPrinterStatus();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✅ Terhubung ke ${info.name}')),
+          SnackBar(content: Text('Terhubung ke ${info.name}')),
         );
       }
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Gagal terhubung ke ${info.name}')),
+          SnackBar(content: Text('Gagal terhubung ke ${info.name}')),
         );
       }
     }
@@ -79,7 +79,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
     final isConn = await ThermalPrinterService.isConnected();
     if (!isConn) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('⚠️ Printer belum terhubung. Hubungkan printer terlebih dahulu.')),
+        const SnackBar(content: Text('Printer belum terhubung. Hubungkan printer terlebih dahulu.')),
       );
       return;
     }
@@ -88,7 +88,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
     final text = 'TEST PRINT KASIR AKSIVA\nPrinter OK!\n\n\n';
     await PrintBluetoothThermal.writeString(printText: PrintTextSize(size: 2, text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('🖨️ Perintah tes cetak berhasil dikirim!')),
+      const SnackBar(content: Text('Perintah tes cetak berhasil dikirim!')),
     );
   }
 

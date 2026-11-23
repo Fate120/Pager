@@ -121,7 +121,7 @@ class SettingsScreen extends StatelessWidget {
                 if (ctx.mounted) {
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('✅ URL Backend berhasil diperbarui!')),
+                    const SnackBar(content: Text('URL Backend berhasil diperbarui!')),
                   );
                 }
               }

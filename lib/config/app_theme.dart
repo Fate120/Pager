@@ -10,11 +10,13 @@ class AppConstants {
   static const String keyPrinterName = 'saved_printer_name';
   static const String keyPaperSize = 'saved_paper_size_mm'; // 58 or 80
   static const String keyBaseUrl = 'saved_api_base_url';
+  static const String keyProducts = 'saved_local_products';
+  static const String keyCategories = 'saved_local_categories';
 }
 
 class AppTheme {
   // Aksiva & Neo-Brutalist Palette
-  static const Color primaryNavy = Color(0xFF0A2847);
+  static const Color primaryNavy = Color(0xFF01518E);
   static const Color accentOrange = Color(0xFFFA6800);
   static const Color accentYellow = Color(0xFFFFCC00);
   static const Color successGreen = Color(0xFF10B981);

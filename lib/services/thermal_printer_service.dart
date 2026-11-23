@@ -156,24 +156,34 @@ class ThermalPrinterService {
       ),
     ]);
 
-    bytes += generator.row([
-      PosColumn(text: 'Metode Bayar: ${order.paymentMethod.toUpperCase()}', width: 6),
-      PosColumn(
-        text: order.paymentMethod == 'cash' ? _formatRupiah(order.cashPaid) : _formatRupiah(order.totalAmount),
-        width: 6,
-        styles: const PosStyles(align: PosAlign.right),
-      ),
-    ]);
-
-    if (order.paymentMethod == 'cash' && order.cashPaid > order.totalAmount) {
+    if (order.paymentMethod.toLowerCase() == 'qris') {
       bytes += generator.row([
-        PosColumn(text: 'KEMBALIAN', width: 6),
+        PosColumn(text: 'Metode Bayar', width: 6),
         PosColumn(
-          text: _formatRupiah(order.cashPaid - order.totalAmount),
+          text: 'QRIS (LUNAS)',
+          width: 6,
+          styles: const PosStyles(align: PosAlign.right, bold: true),
+        ),
+      ]);
+    } else {
+      bytes += generator.row([
+        PosColumn(text: 'Bayar (TUNAI)', width: 6),
+        PosColumn(
+          text: _formatRupiah(order.cashPaid > 0 ? order.cashPaid : order.totalAmount),
           width: 6,
           styles: const PosStyles(align: PosAlign.right),
         ),
       ]);
+      if (order.cashPaid > order.totalAmount) {
+        bytes += generator.row([
+          PosColumn(text: 'KEMBALIAN', width: 6),
+          PosColumn(
+            text: _formatRupiah(order.cashPaid - order.totalAmount),
+            width: 6,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
+        ]);
+      }
     }
 
     bytes += generator.hr(ch: '=');
