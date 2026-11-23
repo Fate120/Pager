@@ -197,7 +197,9 @@ class _PosScreenState extends State<PosScreen> {
         Container(width: 2, color: AppTheme.borderBlack),
         Expanded(
           flex: 35,
-          child: _buildCartView(),
+          child: Consumer<StoreProvider>(
+            builder: (ctx, p, _) => _buildCartView(ctx, p),
+          ),
         ),
       ],
     );
@@ -258,9 +260,9 @@ class _PosScreenState extends State<PosScreen> {
 
   // Catalog (Categories + Product Grid)
   Widget _buildCatalogView() {
-    final provider = context.watch<StoreProvider>();
-    final categories = provider.categories;
-    final products = provider.filteredProducts;
+    final categories = context.select<StoreProvider, List<Category>>((p) => p.categories);
+    final selectedCategoryId = context.select<StoreProvider, int?>((p) => p.selectedCategoryId);
+    final products = context.select<StoreProvider, List<Product>>((p) => p.filteredProducts);
 
     return Column(
       children: [
@@ -278,13 +280,13 @@ class _PosScreenState extends State<PosScreen> {
             children: [
               _buildCategoryPill(
                 label: 'Semua Menu',
-                isSelected: provider.selectedCategoryId == null,
-                onTap: () => provider.selectCategory(null),
+                isSelected: selectedCategoryId == null,
+                onTap: () => context.read<StoreProvider>().selectCategory(null),
               ),
               ...categories.map((c) => _buildCategoryPill(
                     label: c.name,
-                    isSelected: provider.selectedCategoryId == c.id,
-                    onTap: () => provider.selectCategory(c.id),
+                    isSelected: selectedCategoryId == c.id,
+                    onTap: () => context.read<StoreProvider>().selectCategory(c.id),
                   )),
             ],
           ),
@@ -609,8 +611,8 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   // Cart View
-  Widget _buildCartView() {
-    final provider = context.watch<StoreProvider>();
+  Widget _buildCartView([BuildContext? hostContext, StoreProvider? hostProvider]) {
+    final provider = hostProvider ?? (hostContext != null ? hostContext.watch<StoreProvider>() : context.watch<StoreProvider>());
     final cart = provider.cart;
 
     return Container(
@@ -636,32 +638,46 @@ class _PosScreenState extends State<PosScreen> {
           Row(
             children: [
               Expanded(
-                child: SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'dine_in', label: Text('Dine In')),
-                    ButtonSegment(value: 'take_away', label: Text('Take Away')),
-                  ],
-                  selected: {provider.orderType},
-                  onSelectionChanged: (set) => provider.setOrderType(set.first),
+                child: _buildOrderTypeButton(
+                  provider: provider,
+                  type: 'dine_in',
+                  label: 'Dine In',
+                  icon: Icons.restaurant,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildOrderTypeButton(
+                  provider: provider,
+                  type: 'take_away',
+                  label: 'Take Away',
+                  icon: Icons.shopping_bag_outlined,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
 
-          if (provider.orderType == 'dine_in')
-            Padding(
+          Visibility(
+            visible: provider.orderType == 'dine_in',
+            maintainState: true,
+            maintainAnimation: true,
+            maintainSize: false,
+            child: Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: TextField(
                 controller: _tableNoController,
                 decoration: const InputDecoration(
                   labelText: 'Nomor Meja',
+                  hintText: 'Contoh: 05',
                   isDense: true,
                   border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.table_restaurant, size: 18),
                 ),
                 onChanged: (val) => provider.setTableNo(val),
               ),
             ),
+          ),
 
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
@@ -711,9 +727,15 @@ class _PosScreenState extends State<PosScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.accentOrange,
                 padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: const BorderSide(color: AppTheme.borderBlack, width: 2),
+                ),
+                elevation: 0,
               ),
               child: const Text('SELESAIKAN & BAYAR', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.white)),
             ),
+            SizedBox(height: MediaQuery.of(context).padding.bottom > 0 ? MediaQuery.of(context).padding.bottom + 8 : 20),
           ],
         ],
       ),
@@ -771,13 +793,66 @@ class _PosScreenState extends State<PosScreen> {
     );
   }
 
+  Widget _buildOrderTypeButton({
+    required StoreProvider provider,
+    required String type,
+    required String label,
+    required IconData icon,
+  }) {
+    final isSelected = provider.orderType == type;
+    return InkWell(
+      onTap: isSelected ? null : () => provider.setOrderType(type),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryNavy : const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? AppTheme.borderBlack : Colors.grey.shade400,
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: isSelected ? AppTheme.brutalistShadow(offset: 2) : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? AppTheme.accentYellow : AppTheme.textMuted,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.w900 : FontWeight.bold,
+                fontSize: 13,
+                color: isSelected ? Colors.white : AppTheme.textDark,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showPhoneCartBottomSheet() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => FractionallySizedBox(
-        heightFactor: 0.85,
-        child: _buildCartView(),
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        top: false,
+        child: FractionallySizedBox(
+          heightFactor: 0.88,
+          child: Consumer<StoreProvider>(
+            builder: (ctx, p, _) => _buildCartView(ctx, p),
+          ),
+        ),
       ),
     );
   }

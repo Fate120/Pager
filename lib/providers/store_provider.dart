@@ -295,6 +295,7 @@ class StoreProvider with ChangeNotifier {
   }
 
   void setOrderType(String type) {
+    if (_orderType == type) return;
     _orderType = type;
     notifyListeners();
   }
